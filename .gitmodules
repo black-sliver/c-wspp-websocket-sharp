@@ -1,0 +1,3 @@
+[submodule "c-wspp"]
+	path = c-wspp
+	url = https://github.com/black-sliver/c-wspp.git
