@@ -71,6 +71,7 @@ namespace WebSocketSharp
                 }
             }
             Console.WriteLine("WebSocketEventDispatcher: stopped");
+            _queue = null;
         }
 
         public void Dispose()
@@ -81,6 +82,10 @@ namespace WebSocketSharp
 
         protected virtual void Dispose(bool disposing)
         {
+            if (IsCurrentThread)
+            {
+                throw new InvalidOperationException("Can't dispose self");
+            }
             Console.WriteLine("WebSocketEventDispatcher: disposing");
             if (!_stop)
             {

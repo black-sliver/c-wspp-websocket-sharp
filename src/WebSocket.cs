@@ -22,6 +22,7 @@ namespace WebSocketSharp
         private Uri uri;
         private WebSocketWorker worker = null;
         private WebSocketEventDispatcher dispatcher = null;
+        private object dispatcherLock = new object();
         private List<byte[]> pings = new List<byte[]>();
         private State state;
 
@@ -67,15 +68,44 @@ namespace WebSocketSharp
                 Console.WriteLine("WebSocket: shutting down");
                 close(old, 1001, "Going away");
 
-                if (worker != null) {
-                    worker.Dispose();
-                    worker = null;
+                // try to stop the worker thread
+                try
+                {
+                    if (worker != null)
+                        worker.Dispose();
                 }
+                catch (Exception)
+                {
+                    // ignore
+                }
+                worker = null;
 
-                if (dispatcher != null) {
-                    dispatcher.Dispose();
-                    dispatcher = null;
+                // try to stop the dispatcher thread
+                try
+                {
+                    if (dispatcher != null)
+                        dispatcher.Dispose();
                 }
+                catch (InvalidOperationException)
+                {
+                    WebSocketEventDispatcher tmp = dispatcher;
+                    new Thread(new ThreadStart(delegate
+                    {
+                        try
+                        {
+                            tmp.Dispose();
+                        }
+                        catch(Exception)
+                        {
+                            // ignore
+                        }
+                    })).Start();
+                }
+                catch (Exception)
+                {
+                    // ignore
+                }
+                dispatcher = null;
 
                 Console.WriteLine("WebSocket: wspp_delete");
                 wspp_delete(old);
@@ -85,6 +115,7 @@ namespace WebSocketSharp
                 messageHandler = null;
                 errorHandler = null;
                 pongHandler = null;
+                dispatcherLock = null;
             }
         }
 
@@ -161,14 +192,16 @@ namespace WebSocketSharp
                 worker = null;
             }
 
-            if (dispatcher == null) {
-                // we dispatch events from a separate thread to avoid deadlocks
-                dispatcher = new WebSocketEventDispatcher(); // (this)
-                dispatcher.OnOpen += dispatchOnOpen;
-                dispatcher.OnClose += dispatchOnClose;
-                dispatcher.OnError += dispatchOnError;
-                dispatcher.OnMessage += dispatchOnMessage;
-                dispatcher.Start();
+            lock (dispatcherLock) {
+                if (dispatcher == null) {
+                    // we dispatch events from a separate thread to avoid deadlocks
+                    dispatcher = new WebSocketEventDispatcher(); // (this)
+                    dispatcher.OnOpen += dispatchOnOpen;
+                    dispatcher.OnClose += dispatchOnClose;
+                    dispatcher.OnError += dispatchOnError;
+                    dispatcher.OnMessage += dispatchOnMessage;
+                    dispatcher.Start();
+                }
             }
 
             wspp_connect(ws);
@@ -342,12 +375,35 @@ namespace WebSocketSharp
 
         private void dispatchOnClose(object sender, CloseEventArgs e)
         {
+            lock (dispatcherLock)
+            {
+                WebSocketEventDispatcher tmp = dispatcher;
+                dispatcher = null;
+                new Thread(new ThreadStart(delegate
+                {
+                    tmp.Dispose();
+                })).Start();
+            }
+
             if (OnClose != null)
                 OnClose(this, e);
         }
 
         private void dispatchOnError(object sender, ErrorEventArgs e)
         {
+            if (state == State.Disconnected)
+            {
+                lock (dispatcherLock)
+                {
+                    WebSocketEventDispatcher tmp = dispatcher;
+                    dispatcher = null;
+                    new Thread(new ThreadStart(delegate
+                    {
+                        tmp.Dispose();
+                    })).Start();
+                }
+            }
+
             if (OnError != null)
                 OnError(this, e);
         }
