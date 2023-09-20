@@ -39,7 +39,7 @@ namespace WebSocketSharp
                 WebSocket.wspp_poll(_ws);
                 Thread.Sleep(1);
             }
-            Console.WriteLine("- stopping or stopped");
+            Console.WriteLine("WebSocketWorker: stopping or stopped");
 
             // wait up to a second for closing handshake
             for (int i=0; i<1000; i++)
@@ -48,12 +48,10 @@ namespace WebSocketSharp
                 {
                     break;
                 }
-                Console.WriteLine(".");
                 WebSocket.wspp_poll(_ws);
-                Console.WriteLine(",");
                 Thread.Sleep(1);
             }
-            Console.WriteLine("run done\n");
+            Console.WriteLine("WebSocketWorker: done");
         }
 
         public void Dispose()
@@ -64,13 +62,12 @@ namespace WebSocketSharp
 
         protected virtual void Dispose(bool disposing)
         {
-            Console.WriteLine("- disposing worker");
+            Console.WriteLine("WebSocketWorker: disposing");
             if (!_stop)
             {
                 _stop = true;
-                Console.WriteLine("- join");
                 _thread.Join();
-                Console.WriteLine("- joined");
+                Console.WriteLine("WebSocketWorker: joined");
             }
         }
 

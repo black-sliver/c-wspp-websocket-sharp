@@ -70,7 +70,7 @@ namespace WebSocketSharp
                     Thread.Sleep(1);
                 }
             }
-            Console.WriteLine("- dispatcher stopped");
+            Console.WriteLine("WebSocketEventDispatcher: stopped");
         }
 
         public void Dispose()
@@ -81,13 +81,12 @@ namespace WebSocketSharp
 
         protected virtual void Dispose(bool disposing)
         {
-            Console.WriteLine("- disposing dispatcher");
+            Console.WriteLine("WebSocketEventDispatcher: disposing");
             if (!_stop)
             {
                 _stop = true;
-                Console.WriteLine("- join");
                 _thread.Join();
-                Console.WriteLine("- joined");
+                Console.WriteLine("WebSocketEventDispatcher: joined");
                 _queue = null;
             }
         }

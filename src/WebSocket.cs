@@ -103,7 +103,6 @@ namespace WebSocketSharp
                 throw new InvalidOperationException("Can't wait for reply from worker thread");
             }
 
-            Console.WriteLine("pingBlocking");
             lock(pings)
             {
                 pings.Add(data);
@@ -134,7 +133,7 @@ namespace WebSocketSharp
             {
                 pings.Remove(data);
             }
-            Console.WriteLine("timeout");
+            Console.WriteLine("pong timeout");
             throw new TimeoutException();
         }
 
@@ -238,7 +237,7 @@ namespace WebSocketSharp
                 // TODO: remember time of last ping and don't spam it.
                 // Can disconnect at any time between IsAlive and actual message, so this is kinda useless anyway.
                 if (state == State.Disconnected) {
-                    Console.WriteLine("Disconnected is not alive.");
+                    Console.WriteLine("IsAlive=False (disconnected)");
                     return false;
                 }
                 Random rnd = new Random();
@@ -246,7 +245,7 @@ namespace WebSocketSharp
                 rnd.NextBytes(b);
                 try {
                     pingBlocking(b);
-                    Console.WriteLine("Is alive.");
+                    Console.WriteLine("IsAlive=True");
                     return true;
                 } catch (InvalidOperationException ex) {
                     Console.WriteLine(ex.ToString());
@@ -257,7 +256,7 @@ namespace WebSocketSharp
                     Console.WriteLine(ex.ToString());
                 }
                 // for whatever reason, we sometimes don't receive the pong
-                Console.WriteLine("Is not alive.");
+                Console.WriteLine("IsAlive=False");
                 return false;
             }
         }
