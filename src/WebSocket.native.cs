@@ -23,42 +23,53 @@ namespace WebSocketSharp
         private OnErrorCallback errorHandler;
         private OnPongCallback pongHandler;
 
+    #if C_WSPP_CALLING_CONVENTION_CDECL
+        internal const CallingConvention CALLING_CONVENTION = CallingConvention.Cdecl;
+    #else
+        internal const CallingConvention CALLING_CONVENTION = CallingConvention.Winapi;
+    #endif
+
+        [UnmanagedFunctionPointer(CALLING_CONVENTION)]
         internal delegate void OnMessageCallback(IntPtr data, ulong len, int opCode);
+        [UnmanagedFunctionPointer(CALLING_CONVENTION)]
         internal delegate void OnOpenCallback();
+        [UnmanagedFunctionPointer(CALLING_CONVENTION)]
         internal delegate void OnCloseCallback(); // TODO: code, reason
+        [UnmanagedFunctionPointer(CALLING_CONVENTION)]
         internal delegate void OnErrorCallback(); // TODO: message, errorCode
+        [UnmanagedFunctionPointer(CALLING_CONVENTION)]
         internal delegate void OnPongCallback(IntPtr data, ulong len);
 
     #if OS_WINDOWS
-        [DllImport("c-wspp.dll", CharSet=CharSet.Ansi)]
+        [DllImport("c-wspp.dll", CharSet=CharSet.Ansi, CallingConvention=CALLING_CONVENTION)]
         internal static extern UIntPtr wspp_new(IntPtr uri);
-        [DllImport("c-wspp.dll")]
+        [DllImport("c-wspp.dll", CallingConvention=CALLING_CONVENTION)]
         internal static extern void wspp_delete(UIntPtr ws);
-        [DllImport("c-wspp.dll")]
+        [DllImport("c-wspp.dll", CallingConvention=CALLING_CONVENTION)]
         internal static extern ulong wspp_poll(UIntPtr ws);
-        [DllImport("c-wspp.dll")]
+        [DllImport("c-wspp.dll", CallingConvention=CALLING_CONVENTION)]
         internal static extern ulong wspp_run(UIntPtr ws);
-        [DllImport("c-wspp.dll")]
+        [DllImport("c-wspp.dll", CallingConvention=CALLING_CONVENTION)]
         internal static extern bool wspp_stopped(UIntPtr ws);
-        [DllImport("c-wspp.dll")]
+        [DllImport("c-wspp.dll", CallingConvention=CALLING_CONVENTION)]
         internal static extern int wspp_connect(UIntPtr ws);
-        [DllImport("c-wspp.dll")]
+        [DllImport("c-wspp.dll", CallingConvention=CALLING_CONVENTION)]
         internal static extern int wspp_close(UIntPtr ws, ushort code, IntPtr reason);
-        [DllImport("c-wspp.dll")]
+        [DllImport("c-wspp.dll", CallingConvention=CALLING_CONVENTION)]
         internal static extern int wspp_send_text(UIntPtr ws, IntPtr message);
-        [DllImport("c-wspp.dll")]
+        [DllImport("c-wspp.dll", CallingConvention=CALLING_CONVENTION)]
         internal static extern int wspp_send_binary(UIntPtr ws, byte[] data, ulong len);
-        [DllImport("c-wspp.dll")]
+        [DllImport("c-wspp.dll", CallingConvention=CALLING_CONVENTION)]
         internal static extern int wspp_ping(UIntPtr ws, byte[] data, ulong len);
-        [DllImport("c-wspp.dll")]
+        [DllImport("c-wspp.dll", CallingConvention=CALLING_CONVENTION)]
         internal static extern void wspp_set_open_handler(UIntPtr ws, OnOpenCallback f);
-        [DllImport("c-wspp.dll")]
+        [DllImport("c-wspp.dll", CallingConvention=CALLING_CONVENTION)]
         internal static extern void wspp_set_close_handler(UIntPtr ws, OnCloseCallback f);
-        [DllImport("c-wspp.dll")]
+        [DllImport("c-wspp.dll", CallingConvention=CALLING_CONVENTION)]
         internal static extern void wspp_set_message_handler(UIntPtr ws, OnMessageCallback f);
-        [DllImport("c-wspp.dll")]
+        [DllImport("c-wspp.dll", CallingConvention=CALLING_CONVENTION)]
         internal static extern void wspp_set_error_handler(UIntPtr ws, OnErrorCallback f);
-        [DllImport("c-wspp.dll")]
+        [DllImport("c-wspp.dll", CallingConvention=CALLING_CONVENTION)]
         internal static extern void wspp_set_pong_handler(UIntPtr ws, OnPongCallback f);
     #elif OS_MAC
     #   error "Not implemented"
