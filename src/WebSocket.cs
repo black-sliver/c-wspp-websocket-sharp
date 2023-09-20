@@ -50,14 +50,13 @@ namespace WebSocketSharp
 
         public void Dispose()
         {
-            Console.WriteLine("dispose");
             Dispose(true);
             GC.SuppressFinalize(this); // no need to call finalizer
         }
 
         protected virtual void Dispose(bool disposing)
         {
-            Console.WriteLine("Dispose");
+            Console.WriteLine("Websocket: disposing");
             if (ws != UIntPtr.Zero)
             {
                 clearHandlers();
@@ -65,22 +64,20 @@ namespace WebSocketSharp
                 ws = UIntPtr.Zero;
 
                 // need to close before disposing worker
-                Console.WriteLine("- close");
+                Console.WriteLine("WebSocket: shutting down");
                 close(old, 1001, "Going away");
 
                 if (worker != null) {
-                    Console.WriteLine("- dispose worker");
                     worker.Dispose();
                     worker = null;
                 }
 
                 if (dispatcher != null) {
-                    Console.WriteLine("- dispose dispatcher");
                     dispatcher.Dispose();
                     dispatcher = null;
                 }
 
-                Console.WriteLine("- wspp_delete");
+                Console.WriteLine("WebSocket: wspp_delete");
                 wspp_delete(old);
 
                 openHandler = null;
@@ -93,7 +90,6 @@ namespace WebSocketSharp
 
         ~WebSocket()
         {
-            Console.WriteLine("~");
             Dispose(false);
         }
 

@@ -118,11 +118,12 @@ namespace WebSocketSharp
 
         private void OpenHandler()
         {
+            Console.WriteLine("WebSocket: on Open");
+
             // ignore events that happen during shutdown of the socket
             if (ws == UIntPtr.Zero)
                 return;
 
-            Console.WriteLine("open");
             state = State.Open;
             EventArgs e = new EventArgs();
             // FIXME: on .net >=4.0 we could use an async task to fire from main thread
@@ -131,7 +132,8 @@ namespace WebSocketSharp
 
         private void CloseHandler()
         {
-            Console.WriteLine("close");
+            Console.WriteLine("WebSocket: on Close");
+
             // ignore events that happen during shutdown of the socket
             if (ws == UIntPtr.Zero)
                 return;
@@ -143,11 +145,12 @@ namespace WebSocketSharp
 
         private void MessageHandler(IntPtr data, ulong len, int opCode)
         {
+            Console.WriteLine("WebSocket: on Message");
+
             // ignore events that happen during shutdown of the socket
             if (ws == UIntPtr.Zero)
                 return;
 
-            Console.WriteLine("message");
             if (len > Int32.MaxValue) {
                 error("Received message that was too long");
                 return;
@@ -161,11 +164,11 @@ namespace WebSocketSharp
 
         private void ErrorHandler()
         {
+            Console.WriteLine("WebSocket: on Error");
+
             // ignore events that happen during shutdown of the socket
             if (ws == UIntPtr.Zero)
                 return;
-
-            Console.WriteLine("error");
 
             if (state == State.Connecting) {
                 // no need to close
