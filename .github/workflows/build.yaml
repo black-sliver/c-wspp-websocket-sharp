@@ -9,6 +9,20 @@ on:
 jobs:
 
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt -y install build-essential p7zip mono-mcs libssl-dev
+      - name: Build
+        run: |
+          ./build.sh
+      - name: Store
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-linux_x86-64
+          path: build/**/*
