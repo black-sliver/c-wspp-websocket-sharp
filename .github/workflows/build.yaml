@@ -31,6 +31,11 @@ jobs:
 
   build-msys:
     runs-on: windows-latest
+    strategy:
+      matrix:
+        sys:
+          - clang32
+          - clang64
 
     defaults:
       run:
@@ -41,20 +46,14 @@ jobs:
           submodules: recursive
       - uses: msys2/setup-msys2@v2
         with:
+          msystem: ${{matrix.sys}}
           update: false  # not required for CI
-          install: >-
-            base-devel
-            coreutils
-            make
-            mingw-w64-x86_64-toolchain
-            mingw64/mingw-w64-x86_64-openssl
-            mingw-w64-x86_64-mono
-            p7zip
+          pacboy: openssl:p pkg-config:p gcc-compat:p make:p mono:p p7zip
       - name: Build
         run: |
           ./build.sh
       - name: Store
         uses: actions/upload-artifact@v3
         with:
-          name: build-linux_x86-64
+          name: build-windows
           path: build/**/*
