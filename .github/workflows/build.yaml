@@ -8,7 +8,107 @@ on:
 
 jobs:
 
-  build:
+  prepare-release:
     runs-on: ubuntu-latest
+    if: ${{ github.ref_type == 'tag' }}
     steps:
-      - uses: actions/checkout@v3
+      - name: Set env
+        if: ${{ github.ref_type == 'tag' }}
+        run: echo "RELEASE_TAG=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+
+      - name: Create Release
+        if: ${{ github.ref_type == 'tag' }}
+        uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844
+        with:
+          draft: true
+          name: c-wspp-websocket-sharp ${{ env.RELEASE_TAG }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+
+  build-ubuntu2004:
+    runs-on: ubuntu-20.04
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt -y install build-essential xz-utils mono-mcs libssl-dev
+
+      - name: Build
+        run: |
+          ./build.sh
+          tar -cJvf c-wspp-websocket-sharp_linux-x86_64.tar.xz README.md build
+
+      - name: Store
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-linux_x86-64
+          path: build/**/*
+
+      - name: Set env
+        if: ${{ github.ref_type == 'tag' }}
+        run: echo "RELEASE_TAG=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+
+      - name: Release linux-x86_64
+        if: ${{ github.ref_type == 'tag' }}
+        uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844
+        with:
+          draft: true
+          name: c-wspp-websocket-sharp ${{ env.RELEASE_TAG }}
+          files: c-wspp-websocket-sharp_linux-x86_64.tar.xz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+
+  build-msys:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        sys:
+          - clang32
+          - clang64
+
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{matrix.sys}}
+          update: true  # not required for CI
+          pacboy: openssl:p pkg-config:p gcc-compat:p make:p mono:p p7zip
+
+      - name: Build
+        run: |
+          ./build.sh
+          7z a -mx=9 c-wspp-websocket-sharp_windows-${{matrix.sys}}.zip README.md build
+
+      - name: Store
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-windows-${{matrix.sys}}
+          path: build/**/*
+
+      - name: Set env
+        if: ${{ github.ref_type == 'tag' }}
+        run: echo "RELEASE_TAG=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+
+      - name: Release windows-${{matrix.sys}}
+        if: ${{ github.ref_type == 'tag' }}
+        uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844
+        with:
+          draft: true
+          name: c-wspp-websocket-sharp ${{ env.RELEASE_TAG }}
+          files: c-wspp-websocket-sharp_windows-${{matrix.sys}}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

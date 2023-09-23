@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 cd c-wspp
 ./build.sh
@@ -34,6 +34,15 @@ function build_one () {
         if [ -d $NATIVE_DEP_DIR ]; then
             cp $NATIVE_DEP_DIR/* $DEST_DIR
         fi
+
+        # copy licenses
+        LICENSE="$DEST_DIR/c-wspp-LICENSE.txt"
+        cat c-wspp/LICENSE > "$LICENSE"
+        echo "Or read below." >> "$LICENSE"
+        echo -e "\n---\n\nASIO\n" >> "$LICENSE"
+        cat c-wspp/subprojects/asio/COPYING >> "$LICENSE"
+        echo -e "\n---\n\nWebSocket++\n" >> "$LICENSE"
+        cat c-wspp/subprojects/websocketpp/websocketpp/COPYING >> "$LICENSE"
     else
         echo "Skipping $PLATFORM build. $PLATFORM $NATIVE_LIB_NAME missing."
     fi
