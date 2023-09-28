@@ -182,7 +182,6 @@ namespace WebSocketSharp
 
         private void PongHandler(IntPtr data, ulong len)
         {
-            Console.WriteLine("pong");
             byte[] bytes = new byte[(int)len];
             Marshal.Copy(data, bytes, 0, (int)len);
 
@@ -192,7 +191,7 @@ namespace WebSocketSharp
                 foreach (byte[] b in pings) {
                     if (sequenceEqual(bytes, b)) {
                         pings.Remove(b);
-                        Console.WriteLine("internal ping");
+                        // TODO: (re)set timer to skip IsAlive ping
                         return;
                     }
                 }

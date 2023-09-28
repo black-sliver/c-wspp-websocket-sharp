@@ -136,7 +136,6 @@ namespace WebSocketSharp
             }
 
             Ping(data);
-            Console.WriteLine("ping sent, waiting for pong");
 
             // wait for ping handler to remove it from the list
             for (int i=0; i<timeout; i++) {
@@ -151,7 +150,6 @@ namespace WebSocketSharp
                         }
                     }
                     if (pongReceived) {
-                        Console.WriteLine("pong received");
                         return;
                     }
                 }
@@ -160,7 +158,7 @@ namespace WebSocketSharp
             {
                 pings.Remove(data);
             }
-            Console.WriteLine("pong timeout");
+            Console.WriteLine("WebSocket: pong timeout");
             throw new TimeoutException();
         }
 
@@ -266,7 +264,6 @@ namespace WebSocketSharp
                 // TODO: remember time of last ping and don't spam it.
                 // Can disconnect at any time between IsAlive and actual message, so this is kinda useless anyway.
                 if (state == State.Disconnected) {
-                    Console.WriteLine("IsAlive=False (disconnected)");
                     return false;
                 }
                 Random rnd = new Random();
@@ -274,7 +271,6 @@ namespace WebSocketSharp
                 rnd.NextBytes(b);
                 try {
                     pingBlocking(b);
-                    Console.WriteLine("IsAlive=True");
                     return true;
                 } catch (InvalidOperationException ex) {
                     Console.WriteLine(ex.ToString());
@@ -284,8 +280,7 @@ namespace WebSocketSharp
                 } catch (Exception ex) {
                     Console.WriteLine(ex.ToString());
                 }
-                // for whatever reason, we sometimes don't receive the pong
-                Console.WriteLine("IsAlive=False");
+
                 return false;
             }
         }
