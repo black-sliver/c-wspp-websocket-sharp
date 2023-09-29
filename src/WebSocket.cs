@@ -25,6 +25,7 @@ namespace WebSocketSharp
         private object dispatcherLock = new object();
         private List<byte[]> pings = new List<byte[]>();
         private State state;
+        private DateTime lastPong;
 
         private void error(string message, Exception exception = null)
         {
@@ -261,11 +262,16 @@ namespace WebSocketSharp
         public bool IsAlive
         {
             get {
-                // TODO: remember time of last ping and don't spam it.
-                // Can disconnect at any time between IsAlive and actual message, so this is kinda useless anyway.
-                if (state == State.Disconnected) {
+                if (state == State.Disconnected)
+                {
                     return false;
                 }
+                if (DateTime.UtcNow - lastPong < new TimeSpan(0, 0, 0, 0, 300))
+                {
+                    return true; // don't ping if last ping was not too long ago
+                    // Can disconnect at any time between IsAlive and actual message, so this is kinda useless anyway.
+                }
+
                 Random rnd = new Random();
                 Byte[] b = new Byte[16];
                 rnd.NextBytes(b);

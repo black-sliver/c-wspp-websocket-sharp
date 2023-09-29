@@ -191,7 +191,7 @@ namespace WebSocketSharp
                 foreach (byte[] b in pings) {
                     if (sequenceEqual(bytes, b)) {
                         pings.Remove(b);
-                        // TODO: (re)set timer to skip IsAlive ping
+                        lastPong = DateTime.UtcNow;
                         return;
                     }
                 }
