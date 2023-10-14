@@ -380,11 +380,18 @@ namespace WebSocketSharp
             lock (dispatcherLock)
             {
                 WebSocketEventDispatcher tmp = dispatcher;
-                dispatcher = null;
-                new Thread(new ThreadStart(delegate
+                if (tmp != null)
                 {
-                    tmp.Dispose();
-                })).Start();
+                    dispatcher = null;
+                    new Thread(new ThreadStart(delegate
+                    {
+                        tmp.Dispose();
+                    })).Start();
+                }
+                else
+                {
+                    Console.WriteLine("WARNING: WebSocket: duplicate close event");
+                }
             }
 
             if (OnClose != null)
@@ -395,14 +402,22 @@ namespace WebSocketSharp
         {
             if (readyState == WebSocketState.Closed)
             {
+                // free resources if error left a closed socket
                 lock (dispatcherLock)
                 {
                     WebSocketEventDispatcher tmp = dispatcher;
-                    dispatcher = null;
-                    new Thread(new ThreadStart(delegate
+                    if (tmp != null)
                     {
-                        tmp.Dispose();
-                    })).Start();
+                        dispatcher = null;
+                        new Thread(new ThreadStart(delegate
+                        {
+                            tmp.Dispose();
+                        })).Start();
+                    }
+                    else
+                    {
+                        Console.WriteLine("WARNING: WebSocket: duplicate close event");
+                    }
                 }
             }
 
