@@ -28,10 +28,13 @@ function build_one () {
 
     if [ -f "$NATIVE_LIB" ]; then
         mkdir -p "$DEST_DIR"
+        echo "build -> $DEST_DIR | $OS_MACRO $CALLING_CONVENTION"
         mcs -sdk:2.0 -target:library -out:$DEST_DIR/$LIB_NAME $SRC \
-            -d:$OS_MACRO -d:C_WSPP_CALLING_CONVENTION_$CALLING_CONVENTION
+            -d:$OS_MACRO -d:C_WSPP_CALLING_CONVENTION_$CALLING_CONVENTION || return 1
+        echo "  $NATIVE_LIB -> $DEST_DIR"
         cp $NATIVE_LIB $DEST_DIR
         if [ -d $NATIVE_DEP_DIR ]; then
+            echo "  $NATIVE_DEP_DIR -> $DEST_DIR"
             cp $NATIVE_DEP_DIR/* $DEST_DIR
         fi
 
@@ -48,8 +51,8 @@ function build_one () {
     fi
 }
 
-build_one win32 .dll OS_WINDOWS
-build_one win64 .dll OS_WINDOWS
-build_one linux-x86_64 .so OS_LINUX
-build_one macos-x86_64 .dylib OS_MAC
+build_one win32 .dll OS_WINDOWS || exit 1
+build_one win64 .dll OS_WINDOWS || exit 1
+build_one linux-x86_64 .so OS_LINUX || exit 1
+build_one macos-x86_64 .dylib OS_MAC || exit 1
 
