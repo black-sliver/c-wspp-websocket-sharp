@@ -33,8 +33,10 @@ namespace WebSocketSharp
         internal const string DLL_NAME = "c-wspp.dll";
     #elif OS_MAC
     #   error "Not implemented"
-    #else
+    #elif OS_LINUX || OS_UNIX || OS_BSD
         internal const string DLL_NAME = "c-wspp.so";
+    #else
+    #   error "Please define an OS_* macro"
     #endif
 
         [UnmanagedFunctionPointer(CALLING_CONVENTION)]
@@ -224,6 +226,10 @@ namespace WebSocketSharp
         /// </summary>
         static private UIntPtr wspp_new_from(string uriString, string dllDirectory)
         {
+        #if DEBUG
+            Console.WriteLine("WebSocket: wspp_open in " + DLL_NAME + " from " + dllDirectory);
+        #endif
+
             using (DllDirectory.Context(dllDirectory))
             {
                 return wspp_new(uriString);
