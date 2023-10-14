@@ -8,6 +8,11 @@ using System.Text;
 using System.Threading;
 using WebSocketSharp.Net;
 
+
+// build time configuration to fine tune runtime:
+// NO_WEBSOCKET_MULTI_THREADED_CLOSE: run onClose events in the EventDispatcher thread instead of spaning a new one
+
+
 namespace WebSocketSharp
 {
     public partial class WebSocket : IDisposable
@@ -19,6 +24,14 @@ namespace WebSocketSharp
         private List<byte[]> pings = new List<byte[]>();
         private DateTime lastPong;
         private volatile WebSocketState readyState = WebSocketState.New;
+
+        public event EventHandler OnOpen;
+
+        public event EventHandler<CloseEventArgs> OnClose;
+
+        public event EventHandler<ErrorEventArgs> OnError;
+
+        public event EventHandler<MessageEventArgs> OnMessage;
 
         private void error(string message, Exception exception = null)
         {
@@ -172,6 +185,12 @@ namespace WebSocketSharp
             if (readyState != WebSocketState.Closed && readyState != WebSocketState.New) {
                 throw new InvalidOperationException("Invalid state: " + readyState.ToString());
             }
+
+        #if !WEBSOCKET_MULTI_THREADED_CLOSE
+            if (readyState != WebSocketState.New) {
+                Thread.Sleep(1); // prefer running dispose threads before acquiring new resources
+            }
+        #endif
 
             readyState = WebSocketState.Connecting;
 
@@ -361,14 +380,6 @@ namespace WebSocketSharp
                 throw new Exception(Enum.GetName(typeof(WsppRes), res) ?? "Unknown error");
         }
 
-        public event EventHandler OnOpen;
-
-        public event EventHandler<CloseEventArgs> OnClose;
-
-        public event EventHandler<ErrorEventArgs> OnError;
-
-        public event EventHandler<MessageEventArgs> OnMessage;
-
         private void dispatchOnOpen(object sender, EventArgs e)
         {
             if (OnOpen != null)
@@ -394,8 +405,18 @@ namespace WebSocketSharp
                 }
             }
 
+        #if !NO_WEBSOCKET_MULTI_THREADED_CLOSE
+            if (OnError != null) {
+                new Thread(new ThreadStart(delegate
+                {
+                    Thread.Sleep(1); // prefer disposing first
+                    OnClose(this, e);
+                })).Start();
+            }
+        #else
             if (OnClose != null)
                 OnClose(this, e);
+        #endif
         }
 
         private void dispatchOnError(object sender, ErrorEventArgs e)
@@ -421,6 +442,20 @@ namespace WebSocketSharp
                 }
             }
 
+        #if !NO_WEBSOCKET_MULTI_THREADED_CLOSE
+            // run OnError in a new thread if readyState == Closed
+            if (readyState == WebSocketState.Closed)
+            {
+                if (OnError != null) {
+                    new Thread(new ThreadStart(delegate
+                    {
+                        Thread.Sleep(1); // prefer disposing first
+                        OnError(this, e);
+                    })).Start();
+                }
+            }
+            else
+        #endif
             if (OnError != null)
                 OnError(this, e);
         }
