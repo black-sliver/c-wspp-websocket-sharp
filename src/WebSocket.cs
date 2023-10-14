@@ -12,20 +12,13 @@ namespace WebSocketSharp
 {
     public partial class WebSocket : IDisposable
     {
-        internal enum State
-        {
-            Disconnected = 0,
-            Connecting = 1,
-            Open = 2,
-        }
-
         private Uri uri;
         private WebSocketWorker worker = null;
         private WebSocketEventDispatcher dispatcher = null;
         private object dispatcherLock = new object();
         private List<byte[]> pings = new List<byte[]>();
-        private State state;
         private DateTime lastPong;
+        private volatile WebSocketState readyState = WebSocketState.New;
 
         private void error(string message, Exception exception = null)
         {
@@ -166,21 +159,21 @@ namespace WebSocketSharp
         public void Connect()
         {
             connect();
-            while (worker != null && worker.IsAlive && state != State.Open) {
+            while (worker != null && worker.IsAlive && readyState != WebSocketState.Open) {
                 Thread.Sleep(1);
             }
-            if (state != State.Open) {
+            if (readyState != WebSocketState.Open) {
                 throw new Exception("Connect failed");
             }
         }
 
         private void connect()
         {
-            if (state != State.Disconnected) {
-                throw new InvalidOperationException("Invalid state");
+            if (readyState != WebSocketState.Closed && readyState != WebSocketState.New) {
+                throw new InvalidOperationException("Invalid state: " + readyState.ToString());
             }
 
-            state = State.Connecting;
+            readyState = WebSocketState.Connecting;
 
             if (ws == UIntPtr.Zero) {
                 throw new ObjectDisposedException(GetType().FullName);
@@ -230,12 +223,13 @@ namespace WebSocketSharp
                 throw new ObjectDisposedException(GetType().FullName);
             }
 
+            readyState = WebSocketState.Closing;
             close(ws, code, reason);
 
             if (worker.IsCurrentThread) {
                 throw new InvalidOperationException("Can't wait for reply from worker thread");
             }
-            while (worker != null && worker.IsAlive && state == State.Open) {
+            while (worker != null && worker.IsAlive && readyState != WebSocketState.Closed) {
                 Thread.Sleep(1);
             }
         }
@@ -256,13 +250,20 @@ namespace WebSocketSharp
                 throw new ObjectDisposedException(GetType().FullName);
             }
 
+            readyState = WebSocketState.Closing;
             close(ws, code, reason);
+        }
+
+        public WebSocketState ReadyState {
+            get {
+                return readyState;
+            }
         }
 
         public bool IsAlive
         {
             get {
-                if (state == State.Disconnected)
+                if (readyState != WebSocketState.Open)
                 {
                     return false;
                 }
@@ -392,7 +393,7 @@ namespace WebSocketSharp
 
         private void dispatchOnError(object sender, ErrorEventArgs e)
         {
-            if (state == State.Disconnected)
+            if (readyState == WebSocketState.Closed)
             {
                 lock (dispatcherLock)
                 {

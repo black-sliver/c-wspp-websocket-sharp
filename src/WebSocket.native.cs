@@ -124,7 +124,7 @@ namespace WebSocketSharp
             if (ws == UIntPtr.Zero)
                 return;
 
-            state = State.Open;
+            readyState = WebSocketState.Open;
             EventArgs e = new EventArgs();
             // FIXME: on .net >=4.0 we could use an async task to fire from main thread
             dispatcher.Enqueue(e);
@@ -137,6 +137,8 @@ namespace WebSocketSharp
             // ignore events that happen during shutdown of the socket
             if (ws == UIntPtr.Zero)
                 return;
+
+            readyState = WebSocketState.Closed;
 
             CloseEventArgs e = new CloseEventArgs(0, ""); // TODO: code and reason
             // FIXME: on .net >=4.0 we could use an async task to fire from main thread
@@ -170,10 +172,10 @@ namespace WebSocketSharp
             if (ws == UIntPtr.Zero)
                 return;
 
-            if (state == State.Connecting) {
+            if (readyState == WebSocketState.Connecting) {
                 // no need to close
-                state = State.Disconnected;
-            } else if (state == State.Open) {
+                readyState = WebSocketState.Closed;
+            } else if (readyState == WebSocketState.Open) {
                 // this should never happen since we throw all exceptions in-line
                 Close();
             }
