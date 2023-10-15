@@ -222,6 +222,17 @@ namespace WebSocketSharp
             }
         }
 
+        public void ConnectAsync()
+        {
+            lastError = "";
+            connect();
+            // throw for immediate failure to get nicer stack traces where possible
+            // later failure will run OnError, success will run OnOpen
+            if (readyState != WebSocketState.Open && readyState != WebSocketState.Connecting) {
+                throw new Exception("Connect failed" + ((lastError == "") ? "" : (": " + lastError)));
+            }
+        }
+
         private void connect()
         {
             if (readyState != WebSocketState.Closed && readyState != WebSocketState.New) {
@@ -271,8 +282,6 @@ namespace WebSocketSharp
                 debug("worker already running");
             }
         }
-
-        // public void ConnectAsync() -> return a Task
 
         public void Close()
         {
