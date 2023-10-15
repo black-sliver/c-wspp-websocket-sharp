@@ -46,7 +46,7 @@ namespace WebSocketSharp
         [UnmanagedFunctionPointer(CALLING_CONVENTION)]
         internal delegate void OnCloseCallback(); // TODO: code, reason
         [UnmanagedFunctionPointer(CALLING_CONVENTION)]
-        internal delegate void OnErrorCallback(); // TODO: message, errorCode
+        internal delegate void OnErrorCallback(IntPtr msg); // TODO: errorCode
         [UnmanagedFunctionPointer(CALLING_CONVENTION)]
         internal delegate void OnPongCallback(IntPtr data, ulong len);
 
@@ -168,13 +168,18 @@ namespace WebSocketSharp
             dispatcher.Enqueue(e);
         }
 
-        private void ErrorHandler()
+        private void ErrorHandler(IntPtr msgPtr)
         {
             debug("on Error");
 
             // ignore events that happen during shutdown of the socket
             if (ws == UIntPtr.Zero)
                 return;
+
+            string msg = "Unknown";
+            if (msgPtr != IntPtr.Zero) {
+                msg = Marshal.PtrToStringAnsi(msgPtr); // FIXME: this fails for non-ascii on windows
+            }
 
             if (readyState == WebSocketState.Connecting) {
                 // no need to close
@@ -184,7 +189,8 @@ namespace WebSocketSharp
                 // this should never happen since we throw all exceptions in-line
                 Close();
             }
-            error("Connect error");
+            lastError = msg;
+            error("Connect error: " + msg);
         }
 
         private void PongHandler(IntPtr data, ulong len)

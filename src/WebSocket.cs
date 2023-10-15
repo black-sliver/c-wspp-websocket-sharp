@@ -24,6 +24,7 @@ namespace WebSocketSharp
         private List<byte[]> pings = new List<byte[]>();
         private DateTime lastPong;
         private volatile WebSocketState readyState = WebSocketState.New;
+        string lastError;
         private int _id;
         static object _lastIdLock = new object();
         static int _lastId = 0;
@@ -211,12 +212,13 @@ namespace WebSocketSharp
 
         public void Connect()
         {
+            lastError = "";
             connect();
             while (worker != null && worker.IsAlive && readyState != WebSocketState.Open) {
                 Thread.Sleep(1);
             }
             if (readyState != WebSocketState.Open) {
-                throw new Exception("Connect failed");
+                throw new Exception("Connect failed" + ((lastError == "") ? "" : (": " + lastError)));
             }
         }
 
