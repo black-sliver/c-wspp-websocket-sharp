@@ -168,7 +168,7 @@ namespace WebSocketSharp
             dispatcher.Enqueue(e);
         }
 
-        private void ErrorHandler(IntPtr msgPtr)
+        private void ErrorHandler()
         {
             debug("on Error");
 
