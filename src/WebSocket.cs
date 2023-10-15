@@ -40,6 +40,10 @@ namespace WebSocketSharp
         {
             // FIXME: on .net >=4.0 we could use an async task to fire from main thread
             debug("Error: " + message);
+            if (exception == null)
+            {
+                exception = new Exception(message);
+            }
             ErrorEventArgs e = new ErrorEventArgs(message, exception);
             dispatcher.Enqueue(e);
         }
