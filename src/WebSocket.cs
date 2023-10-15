@@ -24,6 +24,9 @@ namespace WebSocketSharp
         private List<byte[]> pings = new List<byte[]>();
         private DateTime lastPong;
         private volatile WebSocketState readyState = WebSocketState.New;
+        private int _id;
+        static object _lastIdLock = new object();
+        static int _lastId = 0;
 
         public event EventHandler OnOpen;
 
@@ -36,6 +39,7 @@ namespace WebSocketSharp
         private void error(string message, Exception exception = null)
         {
             // FIXME: on .net >=4.0 we could use an async task to fire from main thread
+            debug("Error: " + message);
             ErrorEventArgs e = new ErrorEventArgs(message, exception);
             dispatcher.Enqueue(e);
         }
@@ -43,6 +47,12 @@ namespace WebSocketSharp
         public WebSocket(string uriString)
         {
             // TODO: automatic ws:// or wss://?
+            lock(_lastIdLock)
+            {
+                _id = _lastId + 1;
+                _lastId = _id;
+            }
+            debug("new (\"" + uriString + "\")");
             uri = new Uri(uriString);
             ws = wspp_new_from(uriString, directory);
             setHandlers();
@@ -51,6 +61,13 @@ namespace WebSocketSharp
         public WebSocket(string uriString, string[] protocols)
         {
             // TODO: automatic ws:// or wss://?
+            lock(_lastIdLock)
+            {
+                _id = _lastId + 1;
+                _lastId = _id;
+            }
+            debug("new (\"" + uriString + "\", " +
+                  (protocols == null ? "null" : ("[" + string.Join(", ", protocols) + "]")) + ")");
             uri = new Uri(uriString);
             ws = wspp_new_from(uriString, directory);
             setHandlers();
@@ -64,7 +81,7 @@ namespace WebSocketSharp
 
         protected virtual void Dispose(bool disposing)
         {
-            Console.WriteLine("Websocket: disposing");
+            debug("disposing");
             if (ws != UIntPtr.Zero)
             {
                 clearHandlers();
@@ -72,7 +89,7 @@ namespace WebSocketSharp
                 ws = UIntPtr.Zero;
 
                 // need to close before disposing worker
-                Console.WriteLine("WebSocket: shutting down");
+                debug("shutting down");
                 close(old, 1001, "Going away");
 
                 // try to stop the worker thread
@@ -114,7 +131,7 @@ namespace WebSocketSharp
                 }
                 dispatcher = null;
 
-                Console.WriteLine("WebSocket: wspp_delete");
+                debug("wspp_delete");
                 wspp_delete(old);
 
                 openHandler = null;
@@ -129,6 +146,25 @@ namespace WebSocketSharp
         ~WebSocket()
         {
             Dispose(false);
+        }
+
+        private void debug(string msg)
+        {
+            #if DEBUG
+            Console.WriteLine("WebSocket " + _id + ": " + msg);
+            #endif
+        }
+
+        private static void sdebug(string msg)
+        {
+            #if DEBUG
+            Console.WriteLine("WebSocket: " + msg);
+            #endif
+        }
+
+        private void warn(string msg)
+        {
+            Console.WriteLine("WARNING: WebSocket " + _id + ": " + msg);
         }
 
         private void pingBlocking(byte[] data, int timeout=15000)
@@ -165,7 +201,7 @@ namespace WebSocketSharp
             {
                 pings.Remove(data);
             }
-            Console.WriteLine("WebSocket: pong timeout");
+            debug("pong timeout");
             throw new TimeoutException();
         }
 
@@ -192,6 +228,7 @@ namespace WebSocketSharp
             }
         #endif
 
+            debug("ReadyState = Connecting");
             readyState = WebSocketState.Connecting;
 
             if (ws == UIntPtr.Zero) {
@@ -205,6 +242,7 @@ namespace WebSocketSharp
 
             lock (dispatcherLock) {
                 if (dispatcher == null) {
+                    debug("creating dispatcher");
                     // we dispatch events from a separate thread to avoid deadlocks
                     dispatcher = new WebSocketEventDispatcher(); // (this)
                     dispatcher.OnOpen += dispatchOnOpen;
@@ -215,12 +253,16 @@ namespace WebSocketSharp
                 }
             }
 
+            debug("wspp_connect");
             wspp_connect(ws);
 
             if (worker == null) {
                 // start worker after queing connect
+                debug("creating worker");
                 worker = new WebSocketWorker(ws);
                 worker.Start();
+            } else {
+                debug("worker already running");
             }
         }
 
@@ -238,10 +280,12 @@ namespace WebSocketSharp
 
         public void Close(ushort code, string reason)
         {
+            debug("Close(" + code + ", \"" + reason + "\")");
             if (ws == UIntPtr.Zero) {
                 throw new ObjectDisposedException(GetType().FullName);
             }
 
+            debug("ReadyState = Closing");
             readyState = WebSocketState.Closing;
             close(ws, code, reason);
 
@@ -265,10 +309,12 @@ namespace WebSocketSharp
 
         public void CloseAsync(ushort code, string reason)
         {
+            debug("CloseAsync(" + code + ", \"" + reason + "\")");
             if (ws == UIntPtr.Zero) {
                 throw new ObjectDisposedException(GetType().FullName);
             }
 
+            debug("ReadyState = Closing");
             readyState = WebSocketState.Closing;
             close(ws, code, reason);
         }
@@ -401,9 +447,11 @@ namespace WebSocketSharp
                 }
                 else
                 {
-                    Console.WriteLine("WARNING: WebSocket: duplicate close event");
+                    warn("duplicate close event");
                 }
             }
+
+            // TODO: set state to closed here instead (see comment in WebSocket.native.cs)
 
         #if !NO_WEBSOCKET_MULTI_THREADED_CLOSE
             if (OnError != null) {
@@ -437,10 +485,13 @@ namespace WebSocketSharp
                     }
                     else
                     {
-                        Console.WriteLine("WARNING: WebSocket: duplicate close event");
+                        warn("duplicate close event");
                     }
                 }
             }
+
+            // TODO: set state to closed here instead (see comment in WebSocket.native.cs)
+            // NOTE: this requires the if above to change - say to Disconnecting
 
         #if !NO_WEBSOCKET_MULTI_THREADED_CLOSE
             // run OnError in a new thread if readyState == Closed

@@ -120,12 +120,13 @@ namespace WebSocketSharp
 
         private void OpenHandler()
         {
-            Console.WriteLine("WebSocket: on Open");
+            debug("on Open");
 
             // ignore events that happen during shutdown of the socket
             if (ws == UIntPtr.Zero)
                 return;
 
+            debug("ReadyState = Open");
             readyState = WebSocketState.Open;
             EventArgs e = new EventArgs();
             // FIXME: on .net >=4.0 we could use an async task to fire from main thread
@@ -134,13 +135,14 @@ namespace WebSocketSharp
 
         private void CloseHandler()
         {
-            Console.WriteLine("WebSocket: on Close");
+            debug("on Close");
 
             // ignore events that happen during shutdown of the socket
             if (ws == UIntPtr.Zero)
                 return;
 
-            readyState = WebSocketState.Closed;
+            debug("ReadyState = Closed");
+            readyState = WebSocketState.Closed; // TODO: move this after nulling dispatcher in WebSocket.cs to avoid a race if another thread polls ReadyState
 
             CloseEventArgs e = new CloseEventArgs(0, ""); // TODO: code and reason
             // FIXME: on .net >=4.0 we could use an async task to fire from main thread
@@ -149,7 +151,7 @@ namespace WebSocketSharp
 
         private void MessageHandler(IntPtr data, ulong len, int opCode)
         {
-            Console.WriteLine("WebSocket: on Message");
+            debug("on Message");
 
             // ignore events that happen during shutdown of the socket
             if (ws == UIntPtr.Zero)
@@ -166,9 +168,9 @@ namespace WebSocketSharp
             dispatcher.Enqueue(e);
         }
 
-        private void ErrorHandler()
+        private void ErrorHandler(IntPtr msgPtr)
         {
-            Console.WriteLine("WebSocket: on Error");
+            debug("on Error");
 
             // ignore events that happen during shutdown of the socket
             if (ws == UIntPtr.Zero)
@@ -176,7 +178,8 @@ namespace WebSocketSharp
 
             if (readyState == WebSocketState.Connecting) {
                 // no need to close
-                readyState = WebSocketState.Closed;
+                debug("ReadyState = Closed");
+                readyState = WebSocketState.Closed; // TODO: move this after nulling dispatcher in WebSocket.cs to avoid a race if another thread polls ReadyState
             } else if (readyState == WebSocketState.Open) {
                 // this should never happen since we throw all exceptions in-line
                 Close();
@@ -226,9 +229,7 @@ namespace WebSocketSharp
         /// </summary>
         static private UIntPtr wspp_new_from(string uriString, string dllDirectory)
         {
-        #if DEBUG
-            Console.WriteLine("WebSocket: wspp_open in " + DLL_NAME + " from " + dllDirectory);
-        #endif
+            sdebug("wspp_new(\"" + uriString + "\") in " + DLL_NAME + " from " + dllDirectory);
 
             using (DllDirectory.Context(dllDirectory))
             {
@@ -244,6 +245,7 @@ namespace WebSocketSharp
 
         static private void close(UIntPtr ws, ushort code, string reason)
         {
+            sdebug("wspp_close(" + code + ", \"" + reason + "\')");
             IntPtr reasonUTF8 = StringToHGlobalUTF8(reason);
             wspp_close(ws, code, reasonUTF8);
             Marshal.FreeHGlobal(reasonUTF8);

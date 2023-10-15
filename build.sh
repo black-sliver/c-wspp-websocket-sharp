@@ -10,6 +10,11 @@ cd ..
 # other OSes and architectures work automatically
 WIN32_CALLING_CONVENTION=CDECL
 
+if [ "$1" = "debug" ] || [ "$1" == "DEBUG" ]; then
+    DEBUG_MACRO="DEBUG"
+else
+    DEBUG_MACRO="NDEBUG"
+fi
 
 LIB_NAME="websocket-sharp.dll"
 SRC=src/*
@@ -30,7 +35,7 @@ function build_one () {
         mkdir -p "$DEST_DIR"
         echo "build -> $DEST_DIR | $OS_MACRO $CALLING_CONVENTION"
         mcs -sdk:2.0 -target:library -out:$DEST_DIR/$LIB_NAME $SRC \
-            -d:$OS_MACRO -d:C_WSPP_CALLING_CONVENTION_$CALLING_CONVENTION || return 1
+            -d:$OS_MACRO -d:C_WSPP_CALLING_CONVENTION_$CALLING_CONVENTION -d:$DEBUG_MACRO || return 1
         echo "  $NATIVE_LIB -> $DEST_DIR"
         cp $NATIVE_LIB $DEST_DIR
         if [ -d $NATIVE_DEP_DIR ]; then

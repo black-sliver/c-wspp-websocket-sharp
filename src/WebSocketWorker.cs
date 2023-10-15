@@ -10,8 +10,16 @@ namespace WebSocketSharp
         private UIntPtr _ws;
         private Thread _thread;
         private bool _stop;
+        private int _id;
+        static object _lastIdLock = new object();
+        static int _lastId = 0;
 
         public WebSocketWorker(UIntPtr ws) {
+            lock(_lastIdLock)
+            {
+                _id = _lastId + 1;
+                _lastId = _id;
+            }
             _ws = ws;
             _thread = new Thread(new ThreadStart(work));
             _stop = false;
@@ -31,6 +39,13 @@ namespace WebSocketSharp
 
         public bool IsAlive { get { return _thread.IsAlive; } }
 
+        private void debug(string msg)
+        {
+            #if DEBUG
+            Console.WriteLine("WebSocketWorker " + _id + ": " + msg);
+            #endif
+        }
+
         private void work()
         {
             while (!_stop && !WebSocket.wspp_stopped(_ws))
@@ -39,7 +54,9 @@ namespace WebSocketSharp
                 WebSocket.wspp_poll(_ws);
                 Thread.Sleep(1);
             }
-            Console.WriteLine("WebSocketWorker: stopping or stopped");
+
+            if (!WebSocket.wspp_stopped(_ws))
+                debug("stopping");
 
             // wait up to a second for closing handshake
             for (int i=0; i<1000; i++)
@@ -51,7 +68,7 @@ namespace WebSocketSharp
                 WebSocket.wspp_poll(_ws);
                 Thread.Sleep(1);
             }
-            Console.WriteLine("WebSocketWorker: done");
+            debug("stopped");
         }
 
         public void Dispose()
@@ -62,12 +79,12 @@ namespace WebSocketSharp
 
         protected virtual void Dispose(bool disposing)
         {
-            Console.WriteLine("WebSocketWorker: disposing");
+            debug("disposing");
             if (!_stop)
             {
                 _stop = true;
                 _thread.Join();
-                Console.WriteLine("WebSocketWorker: joined");
+                debug("joined");
             }
         }
 

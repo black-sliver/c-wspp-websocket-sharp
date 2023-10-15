@@ -39,12 +39,22 @@ jobs:
           sudo apt update
           sudo apt -y install build-essential xz-utils mono-mcs libssl-dev
 
-      - name: Build
+      - name: Build Debug
+        run: |
+          ./build.sh debug
+
+      - name: Store Debug
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-linux_x86-64-debug
+          path: build/**/*
+
+      - name: Build Release
         run: |
           ./build.sh
           tar -cJvf c-wspp-websocket-sharp_linux-x86_64.tar.xz README.md build
 
-      - name: Store
+      - name: Store Release
         uses: actions/upload-artifact@v3
         with:
           name: build-linux_x86-64
@@ -88,12 +98,22 @@ jobs:
           update: true  # not required for CI
           pacboy: openssl:p pkg-config:p gcc-compat:p make:p mono:p p7zip
 
-      - name: Build
+      - name: Build Debug
+        run: |
+          ./build.sh debug
+
+      - name: Store Debug
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-windows-${{matrix.sys}}-debug
+          path: build/**/*
+
+      - name: Build Release
         run: |
           ./build.sh
           7z a -mx=9 c-wspp-websocket-sharp_windows-${{matrix.sys}}.zip README.md build
 
-      - name: Store
+      - name: Store Release
         uses: actions/upload-artifact@v3
         with:
           name: build-windows-${{matrix.sys}}

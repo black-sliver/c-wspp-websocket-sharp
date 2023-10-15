@@ -11,8 +11,16 @@ namespace WebSocketSharp
         private Thread _thread;
         private bool _stop;
         private Queue<EventArgs> _queue;
+        private int _id;
+        static object _lastIdLock = new object();
+        static int _lastId = 0;
 
         public WebSocketEventDispatcher() {
+            lock(_lastIdLock)
+            {
+                _id = _lastId + 1;
+                _lastId = _id;
+            }
             _thread = new Thread(new ThreadStart(work));
             _stop = false;
             _queue = new Queue<EventArgs>();
@@ -32,8 +40,16 @@ namespace WebSocketSharp
 
         public bool IsAlive { get { return _thread.IsAlive; } }
 
+        private void debug(string msg)
+        {
+            #if DEBUG
+            Console.WriteLine("WebSocketEventDispatcher " + _id + ": " + msg);
+            #endif
+        }
+
         private void work()
         {
+            debug("running");
             while (!_stop)
             {
                 // dispatch events from here
@@ -70,7 +86,7 @@ namespace WebSocketSharp
                     Thread.Sleep(1);
                 }
             }
-            Console.WriteLine("WebSocketEventDispatcher: stopped");
+            debug("stopped");
             _queue = null;
         }
 
@@ -86,12 +102,12 @@ namespace WebSocketSharp
             {
                 throw new InvalidOperationException("Can't dispose self");
             }
-            Console.WriteLine("WebSocketEventDispatcher: disposing");
+            debug("disposing");
             if (!_stop)
             {
                 _stop = true;
                 _thread.Join();
-                Console.WriteLine("WebSocketEventDispatcher: joined");
+                debug("joined");
                 _queue = null;
             }
         }
