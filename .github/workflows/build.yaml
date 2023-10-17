@@ -27,7 +27,15 @@ jobs:
 
 
   build-ubuntu2004:
-    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-20.04
+            name: linux-x86_64-openssl1
+          - os: ubuntu-22.04
+            name: linux-x86_64-openssl3
+
+    runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v4
@@ -52,7 +60,7 @@ jobs:
       - name: Build Release
         run: |
           ./build.sh
-          tar -cJvf c-wspp-websocket-sharp_linux-x86_64.tar.xz README.md build
+          tar -cJvf c-wspp-websocket-sharp_${{ matrix.name }}.tar.xz README.md build
 
       - name: Store Release
         uses: actions/upload-artifact@v3
