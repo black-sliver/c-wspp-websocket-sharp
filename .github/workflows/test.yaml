@@ -10,7 +10,7 @@ jobs:
   test-ubuntu:
     strategy:
       matrix:
-        os: [ubuntu-20.04, ubuntu-22.04, ubuntu-24.04, windows-latest]
+        os: [ubuntu-20.04, ubuntu-22.04, ubuntu-24.04]
 
     name: test-${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -36,7 +36,7 @@ jobs:
           ./wstest.exe
           mkdir lib
           mv c-wspp* lib/
-          ./wstest.exe
+          ./wstest.exe ./lib
 
 
   test-windows:
@@ -67,10 +67,10 @@ jobs:
           ./wstest.exe
           mkdir lib
           mv c-wspp* lib/
-          ./wstest.exe
+          ./wstest.exe lib
 
       - name: Run Test (32bit)
         run: |
           cd build/test/net20
           CorFlags.exe wstest.exe /32BIT+
-          ./wstest.exe
+          ./wstest.exe lib
