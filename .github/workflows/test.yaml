@@ -33,10 +33,10 @@ jobs:
       - name: Run Test
         run: |
           cd build/test/net20
-          ./wstest.exe
+          mono ./wstest.exe
           mkdir lib
           mv c-wspp* lib/
-          ./wstest.exe ./lib
+          mono ./wstest.exe ./lib
 
 
   test-windows:
@@ -53,8 +53,12 @@ jobs:
 
       - uses: msys2/setup-msys2@v2
         with:
-          update: false
-          pacboy: mono wget p7zip
+          update: true
+          pacboy: mono:p wget:p
+
+      - name: Install dependencies
+        run: |
+          pacman --noconfirm -S unzip
 
       - name: Build Debug
         run: |
@@ -69,7 +73,10 @@ jobs:
           mv c-wspp* lib/
           ./wstest.exe lib
 
+      - uses: ilammy/msvc-dev-cmd@v1
+
       - name: Run Test (32bit)
+        shell: pwsh
         run: |
           cd build/test/net20
           CorFlags.exe wstest.exe /32BIT+
