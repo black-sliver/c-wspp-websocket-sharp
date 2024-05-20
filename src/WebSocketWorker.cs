@@ -7,20 +7,20 @@ namespace WebSocketSharp
 {
     internal class WebSocketWorker : IDisposable
     {
-        private UIntPtr _ws;
+        private IWSPP _wspp;
         private Thread _thread;
         private bool _stop;
         private int _id;
         static object _lastIdLock = new object();
         static int _lastId = 0;
 
-        public WebSocketWorker(UIntPtr ws) {
+        public WebSocketWorker(IWSPP wspp) {
             lock(_lastIdLock)
             {
                 _id = _lastId + 1;
                 _lastId = _id;
             }
-            _ws = ws;
+            _wspp = wspp;
             _thread = new Thread(new ThreadStart(work));
             _stop = false;
         }
@@ -48,24 +48,24 @@ namespace WebSocketSharp
 
         private void work()
         {
-            while (!_stop && !WebSocket.wspp_stopped(_ws))
+            while (!_stop && !_wspp.stopped())
             {
                 // sadly we can't use wspp_run() because .net will not run finalizers then
-                WebSocket.wspp_poll(_ws);
+                _wspp.poll();
                 Thread.Sleep(1);
             }
 
-            if (!WebSocket.wspp_stopped(_ws))
+            if (!_wspp.stopped())
                 debug("stopping");
 
             // wait up to a second for closing handshake
             for (int i=0; i<1000; i++)
             {
-                if (WebSocket.wspp_stopped(_ws))
+                if (_wspp.stopped())
                 {
                     break;
                 }
-                WebSocket.wspp_poll(_ws);
+                _wspp.poll();
                 Thread.Sleep(1);
             }
             debug("stopped");

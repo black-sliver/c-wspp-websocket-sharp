@@ -9,6 +9,7 @@ on:
 jobs:
 
   prepare-release:
+    name: prepare-release
     runs-on: ubuntu-latest
     if: ${{ github.ref_type == 'tag' }}
     steps:
@@ -25,18 +26,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-
-  build-ubuntu:
+  build:
     strategy:
       matrix:
-        include:
-          - os: ubuntu-20.04
-            name: linux-x86_64-openssl1
-          - os: ubuntu-22.04
-            name: linux-x86_64-openssl3
+        mode: [debug, release]
 
-    name: build-${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+    name: build-${{ matrix.mode }}
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
@@ -45,99 +41,38 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt update
-          sudo apt -y install build-essential xz-utils mono-mcs libssl-dev
+          sudo apt-get update -y -qq
+          sudo apt -y install mono-mcs wget zip
 
-      - name: Build Debug
+      - name: Build ${{ matrix.mode }}
         run: |
-          ./build.sh debug
+          ./build.sh ${{ matrix.mode }}
 
-      - name: Store Debug
+      - name: Store ${{ matrix.mode }}
         uses: actions/upload-artifact@v3
         with:
-          name: build-${{ matrix.name }}-debug
-          path: build/**/*
-
-      - name: Build Release
-        run: |
-          ./build.sh
-          tar -cJvf c-wspp-websocket-sharp_${{ matrix.name }}.tar.xz README.md build
-
-      - name: Store Release
-        uses: actions/upload-artifact@v3
-        with:
-          name: build-${{ matrix.name }}
-          path: build/**/*
+          if-no-files-found: error
+          name: c-wspp-websocket-sharp-${{ matrix.mode }}
+          path: dist/c-wspp-websocket-sharp/
 
       - name: Set env
-        if: ${{ github.ref_type == 'tag' }}
-        run: echo "RELEASE_TAG=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+        if: ${{ github.ref_type == 'tag' && matrix.mode == 'release' }}
+        run: |
+          echo "RELEASE_TAG=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+          echo "RELEASE_VERSION=${GITHUB_REF#refs/*/v}" >> $GITHUB_ENV
+
+      - name: ZIP ${{ matrix.mode }}
+        if: ${{ github.ref_type == 'tag' && matrix.mode == 'release' }}
+        run: |
+          cd dist
+          zip -r c-wspp-websocket-sharp_${{ env.RELEASE_VERSION }}.zip c-wspp-websocket-sharp
 
       - name: Release ${{ matrix.name }}
-        if: ${{ github.ref_type == 'tag' }}
+        if: ${{ github.ref_type == 'tag' && matrix.mode == 'release' }}
         uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844
         with:
           draft: true
           name: c-wspp-websocket-sharp ${{ env.RELEASE_TAG }}
-          files: c-wspp-websocket-sharp_${{ matrix.name }}.tar.xz
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-
-  build-msys:
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        sys:
-          - clang32
-          - clang64
-
-    defaults:
-      run:
-        shell: msys2 {0}
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - uses: msys2/setup-msys2@v2
-        with:
-          msystem: ${{matrix.sys}}
-          update: true  # not required for CI
-          pacboy: openssl:p pkg-config:p gcc-compat:p make:p mono:p p7zip
-
-      - name: Build Debug
-        run: |
-          ./build.sh debug
-
-      - name: Store Debug
-        uses: actions/upload-artifact@v3
-        with:
-          name: build-windows-${{matrix.sys}}-debug
-          path: build/**/*
-
-      - name: Build Release
-        run: |
-          ./build.sh
-          7z a -mx=9 c-wspp-websocket-sharp_windows-${{matrix.sys}}.zip README.md build
-
-      - name: Store Release
-        uses: actions/upload-artifact@v3
-        with:
-          name: build-windows-${{matrix.sys}}
-          path: build/**/*
-
-      - name: Set env
-        if: ${{ github.ref_type == 'tag' }}
-        run: echo "RELEASE_TAG=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
-
-      - name: Release windows-${{matrix.sys}}
-        if: ${{ github.ref_type == 'tag' }}
-        uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844
-        with:
-          draft: true
-          name: c-wspp-websocket-sharp ${{ env.RELEASE_TAG }}
-          files: c-wspp-websocket-sharp_windows-${{matrix.sys}}.zip
+          files: dist/c-wspp-websocket-sharp_${{ env.RELEASE_VERSION }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

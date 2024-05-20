@@ -1,6 +1,7 @@
 // This should not be required, but someone might accidentally use this
 
-namespace WebSocketSharp {
+namespace WebSocketSharp
+{
     public enum WebSocketState : ushort
     {
         New = 0,
@@ -10,4 +11,3 @@ namespace WebSocketSharp {
         Closed = 4
     }
 }
-

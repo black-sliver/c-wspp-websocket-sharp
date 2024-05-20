@@ -3,20 +3,20 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using WebSocketSharp.Net;
 
-
 // build time configuration to fine tune runtime:
 // NO_WEBSOCKET_MULTI_THREADED_CLOSE: run onClose events in the EventDispatcher thread instead of spaning a new one
-
 
 namespace WebSocketSharp
 {
     public partial class WebSocket : IDisposable
     {
+        IWSPP wspp;
         private Uri uri;
         private WebSocketWorker worker = null;
         private WebSocketEventDispatcher dispatcher = null;
@@ -28,6 +28,8 @@ namespace WebSocketSharp
         private int _id;
         static object _lastIdLock = new object();
         static int _lastId = 0;
+        static private readonly object _directoryLock = new object();
+        private static string _directory = null;
 
         public event EventHandler OnOpen;
 
@@ -59,8 +61,10 @@ namespace WebSocketSharp
             }
             debug("new (\"" + uriString + "\")");
             uri = new Uri(uriString);
-            ws = wspp_new_from(uriString, directory);
-            setHandlers();
+            wspp = wspp_new_from(uriString, Directory);
+            if (wspp == null)
+                throw new InvalidOperationException("Could not initialize wspp");
+            SetHandlers();
         }
 
         public WebSocket(string uriString, string[] protocols)
@@ -74,8 +78,10 @@ namespace WebSocketSharp
             debug("new (\"" + uriString + "\", " +
                   (protocols == null ? "null" : ("[" + string.Join(", ", protocols) + "]")) + ")");
             uri = new Uri(uriString);
-            ws = wspp_new_from(uriString, directory);
-            setHandlers();
+            wspp = wspp_new_from(uriString, Directory);
+            if (wspp == null)
+                throw new InvalidOperationException("Could not initialize wspp");
+            SetHandlers();
         }
 
         public void Dispose()
@@ -87,15 +93,16 @@ namespace WebSocketSharp
         protected virtual void Dispose(bool disposing)
         {
             debug("disposing");
-            if (ws != UIntPtr.Zero)
+            if (wspp != null)
             {
-                clearHandlers();
-                var old = ws;
-                ws = UIntPtr.Zero;
+                ClearHandlers();
+                IWSPP old = wspp;
+                wspp = null;
 
                 // need to close before disposing worker
                 debug("shutting down");
-                close(old, 1001, "Going away");
+                if (old != null)
+                    old.close(1001, "Going away");
 
                 // try to stop the worker thread
                 try
@@ -137,20 +144,63 @@ namespace WebSocketSharp
                 dispatcher = null;
 
                 debug("wspp_delete");
-                wspp_delete(old);
-
-                openHandler = null;
-                closeHandler = null;
-                messageHandler = null;
-                errorHandler = null;
-                pongHandler = null;
-                dispatcherLock = null;
+                if (wspp != null)
+                    wspp.delete(); // TODO; dispose instead
             }
         }
 
         ~WebSocket()
         {
             Dispose(false);
+        }
+
+        /// <summary>
+        /// wspp_new with string -> utf8 conversion.
+        /// Has its own function scope to ensure DllDirectory.Set is run before wspp_new.
+        /// </summary>
+        private static IWSPP wspp_new(string uriString)
+        {
+            IWSPP res = WSPPFactory.Create(uriString);
+            sdebug("wspp created via " + res.GetType().Name);
+            return res;
+        }
+
+        /// <summary>
+        /// Create new native wspp websocket with DLL from dllDirectory
+        /// </summary>
+        private static IWSPP wspp_new_from(string uriString, string dllDirectory)
+        {
+            sdebug("wspp_new(\"" + uriString + "\") from " + dllDirectory);
+
+            if (dllDirectory == "" || dllDirectory == null)
+            {
+                return wspp_new(uriString);
+            }
+            using (DllDirectory.Context(dllDirectory))
+            {
+                return wspp_new(uriString);
+            }
+        }
+
+        private static string Directory {
+            get {
+                lock (_directoryLock)
+                {
+                    if (_directory == null)
+                    {
+                        _directory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                    }
+                    return _directory;
+                }
+            }
+        }
+
+        public static void SetDirectory(String newDirectory)
+        {
+            lock (_directoryLock)
+            {
+                _directory = newDirectory;
+            }
         }
 
         private void debug(string msg)
@@ -248,7 +298,7 @@ namespace WebSocketSharp
             debug("ReadyState = Connecting");
             readyState = WebSocketState.Connecting;
 
-            if (ws == UIntPtr.Zero) {
+            if (wspp == null) {
                 throw new ObjectDisposedException(GetType().FullName);
             }
 
@@ -271,12 +321,12 @@ namespace WebSocketSharp
             }
 
             debug("wspp_connect");
-            wspp_connect(ws);
+            wspp.connect();
 
             if (worker == null) {
                 // start worker after queing connect
                 debug("creating worker");
-                worker = new WebSocketWorker(ws);
+                worker = new WebSocketWorker(wspp);
                 worker.Start();
             } else {
                 debug("worker already running");
@@ -296,13 +346,14 @@ namespace WebSocketSharp
         public void Close(ushort code, string reason)
         {
             debug("Close(" + code + ", \"" + reason + "\")");
-            if (ws == UIntPtr.Zero) {
+            if (wspp == null) {
                 throw new ObjectDisposedException(GetType().FullName);
             }
 
             debug("ReadyState = Closing");
             readyState = WebSocketState.Closing;
-            close(ws, code, reason);
+            sdebug("wspp_close(" + code + ", \"" + reason + "\')");
+            wspp.close(code, reason);
 
             if (worker.IsCurrentThread) {
                 throw new InvalidOperationException("Can't wait for reply from worker thread");
@@ -325,13 +376,14 @@ namespace WebSocketSharp
         public void CloseAsync(ushort code, string reason)
         {
             debug("CloseAsync(" + code + ", \"" + reason + "\")");
-            if (ws == UIntPtr.Zero) {
+            if (wspp == null) {
                 throw new ObjectDisposedException(GetType().FullName);
             }
 
             debug("ReadyState = Closing");
             readyState = WebSocketState.Closing;
-            close(ws, code, reason);
+            sdebug("wspp_close(" + code + ", \"" + reason + "\')");
+            wspp.close(code, reason);
         }
 
         public WebSocketState ReadyState {
@@ -392,26 +444,18 @@ namespace WebSocketSharp
 
         public void Send(string message)
         {
-            if (ws == UIntPtr.Zero) {
-                throw new ObjectDisposedException(GetType().FullName);
-            }
-
-            IntPtr p = StringToHGlobalUTF8(message);
-            var res = (WsppRes) wspp_send_text(ws, p);
-            Marshal.FreeHGlobal(p);
+            var res = wspp.send(message);
             if (res != WsppRes.OK)
                 throw new Exception(Enum.GetName(typeof(WsppRes), res) ?? "Unknown error");
+            debug("Message sent");
         }
 
         public void Send(byte[] data)
         {
-            if (ws == UIntPtr.Zero) {
-                throw new ObjectDisposedException(GetType().FullName);
-            }
-
-            var res = (WsppRes) wspp_send_binary(ws, data, (ulong)data.Length);
+            var res = wspp.send(data);
             if (res != WsppRes.OK)
                 throw new Exception(Enum.GetName(typeof(WsppRes), res) ?? "Unknown error");
+            debug("Message sent");
         }
 
         public void SendAsync(string message, Action<bool> onComplete = null)
@@ -420,6 +464,7 @@ namespace WebSocketSharp
             Send(message);
             if (onComplete != null)
                 onComplete(true);
+            debug("Message sent");
         }
 
         public void SendAsync(byte[] data, Action<bool> onComplete = null)
@@ -428,17 +473,19 @@ namespace WebSocketSharp
             Send(data);
             if (onComplete != null)
                 onComplete(true);
+            debug("Message sent");
         }
 
         public void Ping(byte[] data)
         {
-            if (ws == UIntPtr.Zero) {
+            if (wspp == null) {
                 throw new ObjectDisposedException(GetType().FullName);
             }
 
-            var res = (WsppRes) wspp_ping(ws, data, (ulong)data.Length);
+            var res = wspp.ping(data);
             if (res != WsppRes.OK)
                 throw new Exception(Enum.GetName(typeof(WsppRes), res) ?? "Unknown error");
+            debug("Ping sent");
         }
 
         private void dispatchOnOpen(object sender, EventArgs e)
@@ -533,4 +580,3 @@ namespace WebSocketSharp
         }
     }
 }
-

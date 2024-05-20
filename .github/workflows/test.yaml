@@ -1,0 +1,76 @@
+name:  CI
+
+on:
+  workflow_dispatch:
+  push:
+  pull_request:
+
+jobs:
+
+  test-ubuntu:
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, ubuntu-22.04, ubuntu-24.04, windows-latest]
+
+    name: test-${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies (apt)
+        run: |
+          sudo apt-get update -y -qq
+          sudo apt -y install mono-mcs wget
+
+      - name: Build Debug
+        run: |
+          ./build.sh debug
+          ./build-test.sh
+
+      - name: Run Test
+        run: |
+          cd build/test/net20
+          ./wstest.exe
+          mkdir lib
+          mv c-wspp* lib/
+          ./wstest.exe
+
+
+  test-windows:
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          update: false
+          pacboy: mono wget p7zip
+
+      - name: Build Debug
+        run: |
+          ./build.sh debug
+          ./build-test.sh
+
+      - name: Run Test
+        run: |
+          cd build/test/net20
+          ./wstest.exe
+          mkdir lib
+          mv c-wspp* lib/
+          ./wstest.exe
+
+      - name: Run Test (32bit)
+        run: |
+          cd build/test/net20
+          CorFlags.exe wstest.exe /32BIT+
+          ./wstest.exe

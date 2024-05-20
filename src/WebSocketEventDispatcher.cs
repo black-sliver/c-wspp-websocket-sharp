@@ -1,4 +1,4 @@
-// Worker (thread) that polls the socket
+// Worker (thread) that dispatches events
 
 using System;
 using System.Collections.Generic;

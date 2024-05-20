@@ -60,4 +60,3 @@ namespace WebSocketSharp
         public Exception Exception { get { return _exception; } }
     }
 }
-

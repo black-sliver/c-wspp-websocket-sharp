@@ -1,66 +1,91 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using System.Runtime.InteropServices;
 
 namespace WebSocketSharp
 {
+    /// <summary>
+    /// Helper to load a native DLL from a specific folder
+    /// </summary>
     internal class DllDirectory : IDisposable
     {
-        private static object _lock = new object();
+        private static readonly object _lock = new object();
+        private static string _new = null;
+        private static Stack<String> _stack = new Stack<String>();
 
         private bool _disposed = false;
 
-    #if OS_WINDOWS
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         private static extern int GetDllDirectory(int nBufferLength, StringBuilder lpPathName);
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         private static extern bool SetDllDirectory(string lpPathName);
 
-        private static string _oldDllDirectory = null;
-
-        private static void set(string newDllDirectory)
+        private static string GetDllDirectoryString()
         {
-            if (_oldDllDirectory != null)
-            {
-                throw new InvalidOperationException("Please reset dll directory before setting it again!");
-            }
             StringBuilder tmpSB = new StringBuilder(10240);
             int len = GetDllDirectory(10240, tmpSB);
             if (len > 10240)
             {
-                throw new Exception("Could not SetDllDirectory");
+                throw new Exception("Could not GetDllDirectory");
             }
             string tmpString = tmpSB.ToString(0, len);
-            SetDllDirectory(newDllDirectory);
-            _oldDllDirectory = tmpString;
+            return tmpString;
         }
 
-        private static void reset()
+        private static bool IsWindows
         {
-            if (_oldDllDirectory != null)
-            {
-                SetDllDirectory(_oldDllDirectory);
-                _oldDllDirectory = null;
+            get {
+                int platformId = (int)Environment.OSVersion.Platform;
+                return (platformId < 4 || platformId == 5);
             }
         }
-    #else
-        internal static void set(string newDllDirectory)
+
+        private static void SetInternal(string newDllDirectory)
         {
-            // not implemented
+            bool isWindows = IsWindows;
+            if (_new == null)
+            {
+                if (isWindows)
+                {
+                    _stack.Push(GetDllDirectoryString());
+                }
+                else
+                {
+                    _stack.Push("");
+                }
+            }
+            else
+            {
+                _stack.Push(_new);
+            }
+            _new = newDllDirectory;
+
+            if (isWindows)
+            {
+                SetDllDirectory(_new);
+            }
         }
 
-        internal static void reset()
+        private static void ResetInternal()
         {
-            // not implemented
+            _new = _stack.Pop();
+            if (IsWindows)
+            {
+                SetDllDirectory(_new);
+                if (_stack.Count == 0)
+                {
+                    _new = null; // ask OS again next time
+                }
+            }
         }
-    #endif
 
         internal static void Set(string newDllDirectory)
         {
             lock (_lock)
             {
-                set(newDllDirectory);
+                SetInternal(newDllDirectory);
             }
         }
 
@@ -68,7 +93,27 @@ namespace WebSocketSharp
         {
             lock (_lock)
             {
-                reset();
+                ResetInternal();
+            }
+        }
+
+        internal static String Current {
+            get {
+                lock (_lock)
+                {
+                    if (_new == null)
+                    {
+                        if (IsWindows)
+                        {
+                            return GetDllDirectoryString();
+                        }
+                        else
+                        {
+                            return "";
+                        }
+                    }
+                    return _new;
+                }
             }
         }
 
@@ -77,7 +122,7 @@ namespace WebSocketSharp
             Monitor.Enter(_lock);
             try
             {
-                set(newDllDirectory);
+                SetInternal(newDllDirectory);
                 return new DllDirectory(); // return IDisposable that resets the directory on Dispose
             }
             catch (Exception ex)
@@ -104,7 +149,7 @@ namespace WebSocketSharp
                 try
                 {
                     _disposed = true;
-                    reset();
+                    ResetInternal();
                 }
                 finally
                 {

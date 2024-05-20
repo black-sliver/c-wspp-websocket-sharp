@@ -8,4 +8,3 @@ namespace WebSocketSharp
         Pong = 0xA,
     }
 }
-
