@@ -122,8 +122,7 @@ namespace WebSocketSharp
                     string attemptedPaths = "";
                     IDL dl = DynamicLinker.Create();
 
-                    // currently, we use system certs, so there is an openssl1 version and an openssl3 version on linux
-                    // try to detect which one to use to be able to (hopefully) load the system config
+                    // try to guess which openssl to target (if openssl1 is available, try that, then openssl3)
                     string variant = "";
                     if (platformId != 6)
                     {
@@ -189,7 +188,7 @@ namespace WebSocketSharp
                             Console.WriteLine("WARNING: Didn't find any openssl. Loading certs may fail.");
                         #endif
 
-                        if (!hasOpenSSL3 && (hasLibSSL || hasOpenSSL1))
+                        if (hasOpenSSL1)
                         {
                             variant = "-openssl1";
                             #if DEBUG
@@ -223,6 +222,11 @@ namespace WebSocketSharp
                             }
                             attemptedPaths += dllPath;
 
+                            if (variant != "")
+                            {
+                                variant = "";
+                                continue;
+                            }
                             if (platformId != 6)
                             {
                                 platformId = 6; // MacOSX
