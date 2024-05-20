@@ -60,25 +60,32 @@ namespace WebSocketSharp
                 }
                 if (e != null)
                 {
-                    if (e is MessageEventArgs)
+                    try
                     {
-                        if (OnMessage != null)
-                            OnMessage(this, (MessageEventArgs)e);
+                        if (e is MessageEventArgs)
+                        {
+                            if (OnMessage != null)
+                                OnMessage(this, (MessageEventArgs)e);
+                        }
+                        else if (e is CloseEventArgs)
+                        {
+                            if (OnClose != null)
+                                OnClose(this, (CloseEventArgs)e);
+                        }
+                        else if (e is ErrorEventArgs)
+                        {
+                            if (OnError != null)
+                                OnError(this, (ErrorEventArgs)e);
+                        }
+                        else //if (e is OpenEventArgs)
+                        {
+                            if (OnOpen != null)
+                                OnOpen(this, e);
+                        }
                     }
-                    else if (e is CloseEventArgs)
+                    catch (Exception ex)
                     {
-                        if (OnClose != null)
-                            OnClose(this, (CloseEventArgs)e);
-                    }
-                    else if (e is ErrorEventArgs)
-                    {
-                        if (OnError != null)
-                            OnError(this, (ErrorEventArgs)e);
-                    }
-                    else //if (e is OpenEventArgs)
-                    {
-                        if (OnOpen != null)
-                            OnOpen(this, e);
+                        debug(ex.Message);
                     }
                 }
                 else
