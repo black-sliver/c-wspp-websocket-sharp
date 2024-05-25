@@ -39,20 +39,40 @@ namespace WebSocketSharp
 
         public event EventHandler<MessageEventArgs> OnMessage;
 
-        private void error(string message, Exception exception = null)
+        #if LOG_TO_FILE
+        private static readonly object _logLock = new object();
+        private static StreamWriter _log = null;
+
+        private static void StartLog()
         {
-            // FIXME: on .net >=4.0 we could use an async task to fire from main thread
-            debug("Error: " + message);
-            if (exception == null)
+            lock (_logLock)
             {
-                exception = new Exception(message);
+                if (_log == null)
+                {
+                    _log = new StreamWriter("websocket-debug.log");
+                }
             }
-            ErrorEventArgs e = new ErrorEventArgs(message, exception);
-            dispatcher.Enqueue(e);
         }
+
+        static internal void Log(string msg)
+        {
+            lock (_logLock)
+            {
+                if (_log != null)
+                {
+                    _log.WriteLine(msg);
+                    _log.Flush();
+                }
+            }
+        }
+        #endif
 
         public WebSocket(string uriString)
         {
+            #if LOG_TO_FILE
+            StartLog();
+            #endif
+
             // TODO: automatic ws:// or wss://?
             lock(_lastIdLock)
             {
@@ -69,6 +89,10 @@ namespace WebSocketSharp
 
         public WebSocket(string uriString, string[] protocols)
         {
+            #if LOG_TO_FILE
+            StartLog();
+            #endif
+
             // TODO: automatic ws:// or wss://?
             lock(_lastIdLock)
             {
@@ -205,21 +229,66 @@ namespace WebSocketSharp
 
         private void debug(string msg)
         {
+            if (msg == null)
+            {
+                msg = "<null>";
+            }
+
             #if DEBUG
             Console.WriteLine("WebSocket " + _id + ": " + msg);
+
+            #if LOG_TO_FILE
+            Log("WebSocket " + _id + ": " + msg);
+            #endif
             #endif
         }
 
         private static void sdebug(string msg)
         {
+            if (msg == null)
+            {
+                msg = "<null>";
+            }
+
             #if DEBUG
             Console.WriteLine("WebSocket: " + msg);
+
+            #if LOG_TO_FILE
+            Log("WebSocket: " + msg);
+            #endif
             #endif
         }
 
         private void warn(string msg)
         {
+            if (msg == null)
+            {
+                msg = "<null>";
+            }
+
+            #if LOG_TO_FILE
+            Log("WARNING: WebSocket " + _id + ": " + msg);
+            #endif
+
             Console.WriteLine("WARNING: WebSocket " + _id + ": " + msg);
+        }
+
+        private void error(string message, Exception exception = null)
+        {
+            // FIXME: on .net >=4.0 we could use an async task to fire from main thread
+            if (message == null)
+            {
+                message = "<null>";
+            }
+
+            if (exception == null)
+            {
+                exception = new Exception(message);
+            }
+
+            debug("Error: " + message);
+            ErrorEventArgs e = new ErrorEventArgs(message, exception);
+            dispatcher.Enqueue(e);
         }
 
         private void pingBlocking(byte[] data, int timeout=15000)
@@ -569,8 +638,15 @@ namespace WebSocketSharp
             }
             else
         #endif
-            if (OnError != null)
-                OnError(this, e);
+            try
+            {
+                if (OnError != null)
+                    OnError(this, e);
+            }
+            catch (Exception ex)
+            {
+                debug(ex.Message);
+            }
         }
 
         private void dispatchOnMessage(object sender, MessageEventArgs e)

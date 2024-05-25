@@ -41,8 +41,17 @@ namespace WebSocketSharp
 
         private void debug(string msg)
         {
+            if (msg == null)
+            {
+                msg = "<null>";
+            }
+
             #if DEBUG
             Console.WriteLine("WebSocketWorker " + _id + ": " + msg);
+
+            #if LOG_TO_FILE
+            WebSocket.Log("WebSocketWorker " + _id + ": " + msg);
+            #endif
             #endif
         }
 

@@ -42,8 +42,17 @@ namespace WebSocketSharp
 
         private void debug(string msg)
         {
+            if (msg == null)
+            {
+                msg = "<null>";
+            }
+
             #if DEBUG
             Console.WriteLine("WebSocketEventDispatcher " + _id + ": " + msg);
+
+            #if LOG_TO_FILE
+            WebSocket.Log("WebSocketEventDispatcher " + _id + ": " + msg);
+            #endif
             #endif
         }
 
@@ -62,6 +71,7 @@ namespace WebSocketSharp
                 {
                     try
                     {
+                        debug("dispatching " + e);
                         if (e is MessageEventArgs)
                         {
                             if (OnMessage != null)
