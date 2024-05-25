@@ -19,8 +19,8 @@ function build_one () {
         echo "$TEST_NAME -> $OUT"
         mcs -sdk:$SDK -out:$OUT $SRC -r:$LIB -d:$DOTNET_MACRO
 
+        TEST_NAME=multiclient-test
         if [ -f "test/$TEST_NAME.cs" ]; then
-            TEST_NAME=multiclient-test
             SRC="test/$TEST_NAME.cs"
             OUT="$DEST_DIR/$TEST_NAME.exe"
             echo "$TEST_NAME -> $OUT"
