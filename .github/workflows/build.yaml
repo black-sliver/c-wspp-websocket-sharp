@@ -89,7 +89,7 @@ jobs:
     strategy:
       matrix:
         sys:
-          - clang32
+          #- clang32  # was clang32 removed from msys2?
           - clang64
 
     defaults:
