@@ -49,7 +49,7 @@ jobs:
           ./build.sh ${{ matrix.mode }}
 
       - name: Store ${{ matrix.mode }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           if-no-files-found: error
           name: c-wspp-websocket-sharp-${{ matrix.mode }}
