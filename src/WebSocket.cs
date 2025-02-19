@@ -60,8 +60,11 @@ namespace WebSocketSharp
             {
                 if (_log != null)
                 {
-                    _log.WriteLine(msg);
-                    _log.Flush();
+                    try
+                    {
+                        _log.WriteLine(msg);
+                        _log.Flush();
+                    } catch (ObjectDisposedException) {}
                 }
             }
         }
