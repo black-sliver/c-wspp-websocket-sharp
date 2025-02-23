@@ -53,7 +53,7 @@ jobs:
           ./build.sh debug
 
       - name: Store Debug
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: build-${{ matrix.name }}-debug
           path: build/**/*
@@ -64,7 +64,7 @@ jobs:
           tar -cJvf c-wspp-websocket-sharp_${{ matrix.name }}.tar.xz README.md build
 
       - name: Store Release
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: build-${{ matrix.name }}
           path: build/**/*
@@ -116,7 +116,7 @@ jobs:
           ./build.sh debug
 
       - name: Store Debug
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: build-windows-${{matrix.sys}}-debug
           path: build/**/*
@@ -127,7 +127,7 @@ jobs:
           7z a -mx=9 c-wspp-websocket-sharp_windows-${{matrix.sys}}.zip README.md build
 
       - name: Store Release
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: build-windows-${{matrix.sys}}
           path: build/**/*
