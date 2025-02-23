@@ -30,8 +30,8 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-20.04
-            name: linux-x86_64-openssl1
+          #- os: ubuntu-20.04
+          #  name: linux-x86_64-openssl1
           - os: ubuntu-22.04
             name: linux-x86_64-openssl3
 
@@ -103,9 +103,13 @@ jobs:
 
       - uses: msys2/setup-msys2@v2
         with:
-          msystem: ${{matrix.sys}}
+          # msystem: ${{matrix.sys}}  # we download c-wspp instead of building it now
           update: true  # not required for CI
-          pacboy: openssl:p pkg-config:p gcc-compat:p make:p mono:p p7zip
+          pacboy: mono:p wget:p
+
+      - name: Install dependencies
+        run: |
+          pacman --noconfirm -S unzip p7zip
 
       - name: Build Debug
         run: |

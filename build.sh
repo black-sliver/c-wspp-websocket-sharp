@@ -1,10 +1,5 @@
 #!/bin/bash
 
-cd c-wspp
-./build.sh
-cd ..
-
-
 # NOTE: this depends on how the native dll was built and has to match
 # 32bit windows gcc uses cdecl by default, msvc uses stdcall by default
 # other OSes and architectures work automatically
@@ -18,6 +13,27 @@ fi
 
 LIB_NAME="websocket-sharp.dll"
 SRC=src/*
+
+function unpack () {
+    URL="$1"
+    TMP_DL_NAME="$2"
+    DL_LIB_NAME="$3"
+    FINAL_LIB_NAME="$4"
+    BUILD_DIR="."
+    DIST_DIR="."
+
+    if [ ! -f "$DIST_DIR/$FINAL_LIB_NAME" ]; then
+        if [ ! -f "$BUILD_DIR/$TMP_DL_NAME" ]; then
+            wget "$URL" -O "$BUILD_DIR/$TMP_DL_NAME"
+        fi
+        if [[ $TMP_DL_NAME == *.zip ]]; then
+            unzip -p "$BUILD_DIR/$TMP_DL_NAME" "$DL_LIB_NAME" > "$DIST_DIR/$FINAL_LIB_NAME"
+        else
+            echo "  $BUILD_DIR/$TMP_DL_NAME/$DL_LIB_NAME -> $DIST_DIR/$FINAL_LIB_NAME"
+            tar -xOJvf "$BUILD_DIR/$TMP_DL_NAME" "$DL_LIB_NAME" > "$DIST_DIR/$FINAL_LIB_NAME"
+        fi
+    fi
+}
 
 function build_one () {
     # PLATFORM, NATIVE_EXT, OS_MACRO
@@ -55,6 +71,17 @@ function build_one () {
         echo "Skipping $PLATFORM build. $PLATFORM $NATIVE_LIB_NAME missing."
     fi
 }
+
+mkdir -p c-wspp/build/win32/lib
+mkdir -p c-wspp/build/win64/lib
+mkdir -p c-wspp/build/linux-x86_64/lib
+
+unpack "https://github.com/black-sliver/c-wspp-websocket-sharp/releases/download/v0.4.1/c-wspp-websocket-sharp_linux-x86_64-openssl3.tar.xz" \
+    "c-wspp-linux-am64.tar.xz" "build/linux-x86_64/c-wspp.so" "c-wspp/build/linux-x86_64/lib/c-wspp.so"
+unpack "https://github.com/black-sliver/c-wspp-websocket-sharp/releases/download/v0.4.1/c-wspp-websocket-sharp_windows-clang32.zip" \
+    "c-wspp-win32.zip" "build/win32/c-wspp.dll" "c-wspp/build/win32/lib/c-wspp.dll"
+unpack "https://github.com/black-sliver/c-wspp-websocket-sharp/releases/download/v0.4.1/c-wspp-websocket-sharp_windows-clang64.zip" \
+    "c-wspp-win64.zip" "build/win64/c-wspp.dll" "c-wspp/build/win64/lib/c-wspp.dll"
 
 build_one win32 .dll OS_WINDOWS || exit 1
 build_one win64 .dll OS_WINDOWS || exit 1
