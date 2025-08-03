@@ -42,7 +42,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update -y -qq
-          sudo apt -y install mono-mcs wget zip
+          sudo apt -y install mono-complete mono-mcs wget zip
 
       - name: Build ${{ matrix.mode }}
         run: |
