@@ -10,7 +10,7 @@ using System.Threading;
 using WebSocketSharp.Net;
 
 // build time configuration to fine tune runtime:
-// NO_WEBSOCKET_MULTI_THREADED_CLOSE: run onClose events in the EventDispatcher thread instead of spaning a new one
+// NO_WEBSOCKET_MULTI_THREADED_CLOSE: run onClose events in the EventDispatcher thread instead of spawning a new one
 
 namespace WebSocketSharp
 {
@@ -396,7 +396,7 @@ namespace WebSocketSharp
             wspp.connect();
 
             if (worker == null) {
-                // start worker after queing connect
+                // start worker after queuing connect
                 debug("creating worker");
                 worker = new WebSocketWorker(wspp);
                 worker.Start();
