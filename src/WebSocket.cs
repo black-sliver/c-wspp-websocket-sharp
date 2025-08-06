@@ -21,7 +21,7 @@ namespace WebSocketSharp
         private WebSocketWorker worker = null;
         private WebSocketEventDispatcher dispatcher = null;
         private object dispatcherLock = new object();
-        private List<byte[]> pings = new List<byte[]>();
+        private List<PingData> pings = new List<PingData>();
         private DateTime lastPong;
         private volatile WebSocketState readyState = WebSocketState.New;
         string lastError;
@@ -300,36 +300,36 @@ namespace WebSocketSharp
                 throw new InvalidOperationException("Can't wait for reply from worker thread");
             }
 
-            lock(pings)
+            EventWaitHandle waitHandle = new EventWaitHandle(false, EventResetMode.ManualReset);
+            try
             {
-                pings.Add(data);
-            }
-
-            Ping(data);
-
-            // wait for ping handler to remove it from the list
-            for (int i=0; i<timeout; i++) {
-                Thread.Sleep(1);
-                lock(pings)
+                PingData ping = new PingData(data, waitHandle);
+                lock (pings)
                 {
-                    bool pongReceived = true;
-                    foreach (byte[] b in pings) {
-                        if (b == data) {
-                            pongReceived = false;
-                            break;
-                        }
-                    }
-                    if (pongReceived) {
-                        return;
-                    }
+                    pings.Add(ping);
                 }
+
+                Ping(data);
+
+                // wait for ping handler to receive the pong
+                bool ok = waitHandle.WaitOne(timeout);
+
+                if (!ok)
+                {
+                    debug("pong timeout");
+                    lock(pings)
+                    {
+                        pings.Remove(ping);
+                    }
+                    throw new TimeoutException();
+                }
+                // if successful, the PongHandler removes PingData
+                debug("pong ok");
             }
-            lock(pings)
+            finally
             {
-                pings.Remove(data);
+                waitHandle.Close();
             }
-            debug("pong timeout");
-            throw new TimeoutException();
         }
 
         public void Connect()
@@ -516,6 +516,7 @@ namespace WebSocketSharp
 
         public void Send(string message)
         {
+            debug("Sending message");
             var res = wspp.send(message);
             if (res != WsppRes.OK)
                 throw new Exception(Enum.GetName(typeof(WsppRes), res) ?? "Unknown error");
@@ -524,6 +525,7 @@ namespace WebSocketSharp
 
         public void Send(byte[] data)
         {
+            debug("Sending message");
             var res = wspp.send(data);
             if (res != WsppRes.OK)
                 throw new Exception(Enum.GetName(typeof(WsppRes), res) ?? "Unknown error");
@@ -536,7 +538,7 @@ namespace WebSocketSharp
             Send(message);
             if (onComplete != null)
                 onComplete(true);
-            debug("Message sent");
+            debug("Message onComplete done");
         }
 
         public void SendAsync(byte[] data, Action<bool> onComplete = null)
@@ -545,7 +547,7 @@ namespace WebSocketSharp
             Send(data);
             if (onComplete != null)
                 onComplete(true);
-            debug("Message sent");
+            debug("Message onComplete done");
         }
 
         public void Ping(byte[] data)
@@ -554,6 +556,7 @@ namespace WebSocketSharp
                 throw new ObjectDisposedException(GetType().FullName);
             }
 
+            debug("Sending ping");
             var res = wspp.ping(data);
             if (res != WsppRes.OK)
                 throw new Exception(Enum.GetName(typeof(WsppRes), res) ?? "Unknown error");
