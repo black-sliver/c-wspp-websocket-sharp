@@ -97,11 +97,12 @@ namespace WebSocketSharp
             // look for internal ping
             lock (pings)
             {
-                foreach (byte[] b in pings)
+                foreach (PingData ping in pings)
                 {
-                    if (sequenceEqual(bytes, b))
+                    if (sequenceEqual(bytes, ping.data))
                     {
-                        pings.Remove(b);
+                        pings.Remove(ping);
+                        ping.waitHandle.Set();
                         lastPong = DateTime.UtcNow;
                         return;
                     }
