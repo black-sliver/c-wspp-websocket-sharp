@@ -516,6 +516,7 @@ namespace WebSocketSharp
 
         public void Send(string message)
         {
+            debug("Sending message");
             var res = wspp.send(message);
             if (res != WsppRes.OK)
                 throw new Exception(Enum.GetName(typeof(WsppRes), res) ?? "Unknown error");
@@ -524,6 +525,7 @@ namespace WebSocketSharp
 
         public void Send(byte[] data)
         {
+            debug("Sending message");
             var res = wspp.send(data);
             if (res != WsppRes.OK)
                 throw new Exception(Enum.GetName(typeof(WsppRes), res) ?? "Unknown error");
@@ -536,7 +538,7 @@ namespace WebSocketSharp
             Send(message);
             if (onComplete != null)
                 onComplete(true);
-            debug("Message sent");
+            debug("Message onComplete done");
         }
 
         public void SendAsync(byte[] data, Action<bool> onComplete = null)
@@ -545,7 +547,7 @@ namespace WebSocketSharp
             Send(data);
             if (onComplete != null)
                 onComplete(true);
-            debug("Message sent");
+            debug("Message onComplete done");
         }
 
         public void Ping(byte[] data)
@@ -554,6 +556,7 @@ namespace WebSocketSharp
                 throw new ObjectDisposedException(GetType().FullName);
             }
 
+            debug("Sending ping");
             var res = wspp.ping(data);
             if (res != WsppRes.OK)
                 throw new Exception(Enum.GetName(typeof(WsppRes), res) ?? "Unknown error");
